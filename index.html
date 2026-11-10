@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Aaj Kya Khayein?</title>
+<style>
+  :root{--bg:#fff8ee;--card:#fff;--ink:#2b1d0e;--accent:#d9480f;--mute:#8a7560}
+  @media(prefers-color-scheme:dark){:root{--bg:#1c140c;--card:#2a1f14;--ink:#f5e9d8;--accent:#ff8c42;--mute:#b39d85}}
+  body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.4 system-ui,sans-serif}
+  main{max-width:560px;margin:0 auto;padding:16px}
+  h1{margin:8px 0 0;font-size:1.6rem}
+  .date{color:var(--mute);margin-bottom:12px}
+  .bar{display:flex;gap:8px;margin-bottom:16px}
+  button{font:inherit;border:1px solid var(--accent);background:none;color:var(--accent);border-radius:8px;padding:6px 12px;cursor:pointer}
+  button.on{background:var(--accent);color:#fff}
+  .card{background:var(--card);border-radius:12px;padding:12px 16px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;gap:12px;box-shadow:0 1px 4px #0002}
+  .slot{font-size:.8rem;color:var(--mute);text-transform:uppercase;letter-spacing:.05em}
+  .dish{font-size:1.2rem;font-weight:600}
+  .card button{padding:4px 10px}
+  dialog{max-width:520px;width:92vw;max-height:80vh;overflow:auto;background:var(--card);color:var(--ink);border:0;border-radius:12px}
+  dialog::backdrop{background:#0008}
+  dialog h3{margin:12px 0 4px}dialog ul{margin:0;padding-left:20px}
+</style>
+</head>
+<body>
+<main>
+  <h1>🍛 Aaj Kya Khayein?</h1>
+  <div class="date" id="date"></div>
+  <div class="bar">
+    <button id="veg">🥦 Veg only</button>
+    <button id="all">🍗 Anything</button>
+    <button id="list" style="margin-left:auto">📖 All meals</button>
+  </div>
+  <div id="meals"></div>
+  <dialog id="dlg"><button id="close" style="float:right">✕</button><div id="dlgbody"></div></dialog>
+</main>
+<script>
+// [name, veg?]
+const MENU = {
+  "🌅 Breakfast (8 AM)": [
+    ["Poha with peanuts & lemon",1],["Aloo paratha with curd",1],["Idli sambar",1],["Masala dosa",1],
+    ["Upma with chutney",1],["Besan chilla",1],["Moong dal cheela",1],["Paneer paratha",1],
+    ["Medu vada sambar",1],["Dalia (savory porridge)",1],["Egg bhurji with toast",0],["Masala omelette & paratha",0],
+    ["Chole kulche",1],["Puri bhaji",1],["Thepla with chai",1],["Keema paratha",0],["Egg dosa",0],["Anda paratha",0],["Chicken sandwich",0],["Sabudana khichdi",1],["Pesarattu",1],["Rava idli",1],["Uttapam",1],["Methi paratha",1],["Misal pav",1],["Vegetable sandwich with chai",1],["Bread pakora",1],["Ragi dosa",1],["Paneer sandwich",1],["Appam with stew",1],["Egg appam",0],["Chicken keema toast",0],["Dahi poha",1],["Sooji halwa & chai",1]
+  ],
+  "🍎 Mid-morning (11 AM)": [
+    ["Fresh fruit bowl",1],["Buttermilk (chaas)",1],["Coconut water",1],["Handful of almonds & walnuts",1],
+    ["Sprouts chaat",1],["Makhana roasted",1],["Lassi",1],["Boiled egg",0],["Chicken soup",0],["Egg chaat",0],["Banana & peanut butter",1],["Roasted peanuts",1],["Sattu drink",1],["Masala chaas",1],["Aam panna",1],["Jaljeera",1],["Papaya bowl",1],["Dates & nuts",1],["Fruit chaat",1],["Mango lassi",1],["Egg whites on toast",0],["Chicken salad",0]
+  ],
+  "🍽️ Lunch (1 PM)": [
+    ["Dal tadka, jeera rice, bhindi fry",1],["Rajma chawal & salad",1],["Chole with roti",1],["Kadhi pakora with rice",1],
+    ["Palak paneer, roti, raita",1],["Sambar rice with papad",1],["Aloo gobi, dal, roti, salad",1],["Veg pulao with raita",1],
+    ["Paneer butter masala & naan",1],["Curd rice with pickle",1],["Chicken curry with rice",0],["Egg curry with roti",0],
+    ["Fish curry with rice",0],["Dal khichdi with ghee",1],["Baingan bharta, roti, dal",1],["Chicken biryani with raita",0],["Mutton curry with rice",0],["Butter chicken & naan",0],["Egg biryani",0],["Prawn masala with rice",0],["Keema matar with roti",0],["Fish fry, dal, rice",0],["Bisi bele bath",1],["Lemon rice & sambar",1],["Pav bhaji",1],["Kofta curry with roti",1],["Mixed veg curry with paratha",1],["Dal baati churma",1],["Gatte ki sabzi with roti",1],["Chana masala with bhature",1],["Tomato rice & raita",1],["Aloo matar with puri",1],["Dum aloo with roti",1],["Malai kofta with naan",1],["Kerala fish curry with rice",0],["Chicken do pyaza with roti",0],["Hyderabadi dum biryani",0],["Egg fried rice (desi)",0],["Chicken chettinad with parotta",0],["Goan fish curry rice",0],["Mutton keema with pav",0],["Chicken pulao",0]
+  ],
+  "☕ Evening snack (5 PM)": [
+    ["Masala chai with Marie biscuits",1],["Samosa with chutney",1],["Bhel puri",1],["Roasted chana",1],
+    ["Dhokla",1],["Veg sandwich",1],["Pakoda with chai",1],["Murmura chaat",1],["Corn chaat",1],["Chicken tikka (small plate)",0],["Chicken momos",0],["Fish pakora",0],["Egg roll",0],["Seekh kebab",0],["Pani puri",1],["Sev puri",1],["Aloo tikki chaat",1],["Kachori with chutney",1],["Vada pav",1],["Bread pakora",1],["Paneer tikka",1],["Medu vada",1],["Poha cutlet",1],["Veg cutlet",1],["Khaman",1],["Fafda jalebi",1],["Pyaaz kachori",1],["Chicken pakora",0],["Egg pakora",0],["Chicken cutlet",0],["Tangdi kebab",0],["Fish finger",0]
+  ],
+  "🌙 Dinner (8 PM)": [
+    ["Roti, mixed veg, dal",1],["Veg khichdi with kadhi",1],["Paneer bhurji with roti",1],["Lauki sabzi, roti, dal",1],
+    ["Moong dal soup & roti",1],["Tawa veg pulao & raita",1],["Matar paneer with roti",1],["Dal makhani with jeera rice",1],
+    ["Tandoori chicken with salad",0],["Egg masala with roti",0],["Chicken curry & roti",0],["Mix dal with phulka",1],["Mutton rogan josh & roti",0],["Chicken korma with roti",0],["Fish curry & rice",0],["Chicken keema pav",0],["Egg bhurji with roti",0],["Palak dal & roti",1],["Bhindi masala, dal, roti",1],["Mushroom masala with roti",1],["Chana dal & lauki roti",1],["Tinda masala with roti",1],["Veg biryani with raita",1],["Dal palak khichdi",1],["Paneer tikka masala & roti",1],["Soya chunk curry with roti",1],["Moong dal khichdi & papad",1],["Gobi paratha with curd",1],["Sarson ka saag, makki roti",1],["Baingan masala with roti",1],["Chicken tikka masala & roti",0],["Fish tikka with salad",0],["Egg curry with rice",0],["Chicken saagwala with roti",0],["Mutton keema & roti",0],["Chicken stew with appam",0],["Pepper chicken with roti",0]
+  ]
+};
+const $ = id => document.getElementById(id);
+const today = new Date(), key = today.toISOString().slice(0,10);
+const store = {
+  get(k,d){try{return JSON.parse(localStorage.getItem(k))??d}catch{return d}},
+  set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch{}}
+};
+// deterministic hash so the same day gives the same plan
+function hash(s){let h=0;for(const c of s)h=(h*31+c.charCodeAt(0))|0;return Math.abs(h)}
+let vegOnly = store.get("veg", true);
+let bumps = store.get("bumps:"+key, {}); // per-slot reshuffle counter
+
+function pick(slot){
+  const list = MENU[slot].filter(d => !vegOnly || d[1]);
+  return list[hash(key+slot+(bumps[slot]||0)) % list.length][0];
+}
+function render(){
+  $("date").textContent = today.toLocaleDateString("en-IN",{weekday:"long",day:"numeric",month:"long"});
+  $("veg").classList.toggle("on", vegOnly);
+  $("all").classList.toggle("on", !vegOnly);
+  $("meals").innerHTML = Object.keys(MENU).map(s =>
+    `<div class="card"><div><div class="slot">${s}</div><div class="dish">${pick(s)}</div></div>
+     <button data-s="${s}" title="Another idea">🔄</button></div>`).join("");
+}
+$("meals").onclick = e => {
+  const s = e.target.dataset.s; if(!s) return;
+  bumps[s] = (bumps[s]||0)+1; store.set("bumps:"+key, bumps); render();
+};
+$("veg").onclick = () => { vegOnly = true; store.set("veg", true); render(); };
+$("all").onclick = () => { vegOnly = false; store.set("veg", false); render(); };
+$("list").onclick = () => {
+  $("dlgbody").innerHTML = Object.entries(MENU).map(([s,l]) =>
+    `<h3>${s}</h3><ul>${l.filter(d => !vegOnly || d[1]).map(d => `<li>${d[1]?"🟢":"🔴"} ${d[0]}</li>`).join("")}</ul>`).join("");
+  $("dlg").showModal();
+};
+$("close").onclick = () => $("dlg").close();
+$("dlg").onclick = e => { if(e.target.id==="dlg") e.target.close(); };
+render();
+</script>
+</body>
+</html>
